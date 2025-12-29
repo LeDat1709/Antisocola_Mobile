@@ -9,7 +9,6 @@ import {
   Platform,
   ScrollView,
   Alert,
-  ActivityIndicator,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -26,25 +25,24 @@ export default function LoginScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const validateForm = (): boolean => {
-    if (!email) {
-      setError('Vui lòng nhập email');
-      return false;
-    }
-    if (!email.includes('@')) {
-      setError('Email không hợp lệ');
-      return false;
-    }
-    if (!password) {
-      setError('Vui lòng nhập mật khẩu');
-      return false;
-    }
-    return true;
-  };
+  // OTP State
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [otpEmail, setOtpEmail] = useState('');
+  const [deviceId, setDeviceId] = useState('');
 
   const handleLogin = async () => {
     setError('');
-    if (!validateForm()) return;
+
+    if (!email || !password) {
+      setError('Vui lòng nhập đầy đủ thông tin');
+      return;
+    }
+
+    if (!email.includes('@')) {
+      setError('Email không hợp lệ');
+      return;
+    }
 
     setIsLoading(true);
 
@@ -52,22 +50,18 @@ export default function LoginScreen() {
       const result = await authService.login({ email, password });
 
       if (result.status === 202) {
-        // Cần xác thực OTP
-        await AsyncStorage.setItem('tempLoginEmail', email);
-        await AsyncStorage.setItem('tempLoginPassword', password);
-        router.push({
-          pathname: '/(auth)/otp-verification',
-          params: { email, type: 'login' },
-        });
-        return;
-      }
-
-      if (result.status === 200) {
-        // Kiểm tra role
+        // Cần OTP
+        setOtpEmail(email);
+        const storedDeviceId = await AsyncStorage.getItem('deviceId');
+        setDeviceId(storedDeviceId || '');
+        setShowOtpModal(true);
+        setError('');
+      } else if (result.status === 200) {
+        // Đăng nhập thành công
         const userRole = result.data?.role?.toUpperCase();
         if (userRole !== 'STUDENT') {
           await authService.logout();
-          setError('Ứng dụng này chỉ dành cho sinh viên');
+          setError('Trang này chỉ dành cho sinh viên');
           return;
         }
         router.replace('/(student)');
@@ -79,8 +73,98 @@ export default function LoginScreen() {
     }
   };
 
+  const handleVerifyOtp = async () => {
+    if (!otpCode || otpCode.length !== 6) {
+      Alert.alert('Lỗi', 'Vui lòng nhập mã OTP 6 chữ số');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const result = await authService.verifyOtp({
+        email: otpEmail,
+        otpCode,
+        deviceId,
+        rememberDevice: true,
+      });
+
+      const userRole = result.data?.role?.toUpperCase();
+      if (userRole !== 'STUDENT') {
+        await authService.logout();
+        setError('Trang này chỉ dành cho sinh viên');
+        setShowOtpModal(false);
+        return;
+      }
+
+      setShowOtpModal(false);
+      router.replace('/(student)');
+    } catch (err) {
+      Alert.alert('Lỗi', (err as Error).message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // OTP Modal
+  if (showOtpModal) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar style="dark" />
+        <KeyboardAvoidingView
+          style={styles.keyboardView}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+            <TouchableOpacity
+              style={styles.backBtn}
+              onPress={() => {
+                setShowOtpModal(false);
+                setOtpCode('');
+              }}
+            >
+              <Ionicons name="arrow-back" size={24} color="#374151" />
+            </TouchableOpacity>
+
+            <View style={styles.iconContainer}>
+              <View style={styles.iconBox}>
+                <Ionicons name="shield-checkmark" size={32} color="#fff" />
+              </View>
+            </View>
+
+            <Text style={styles.title}>Xác thực OTP</Text>
+            <Text style={styles.subtitle}>Nhập mã OTP đã gửi đến {otpEmail}</Text>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>MÃ OTP</Text>
+              <TextInput
+                style={styles.otpInput}
+                placeholder="123456"
+                placeholderTextColor="#9CA3AF"
+                value={otpCode}
+                onChangeText={(text) => setOtpCode(text.replace(/\D/g, '').slice(0, 6))}
+                keyboardType="number-pad"
+                maxLength={6}
+                editable={!isLoading}
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
+              onPress={handleVerifyOtp}
+              disabled={isLoading}
+            >
+              <Text style={styles.loginButtonText}>
+                {isLoading ? 'Đang xử lý...' : 'Xác nhận'}
+              </Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    );
+  }
+
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar style="dark" />
       <KeyboardAvoidingView
         style={styles.keyboardView}
@@ -89,21 +173,20 @@ export default function LoginScreen() {
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
         >
           {/* Logo */}
           <View style={styles.logoContainer}>
             <View style={styles.logoBox}>
-              <Ionicons name="print" size={36} color="#fff" />
+              <Ionicons name="print" size={32} color="#fff" />
             </View>
             <Text style={styles.logoText}>⚡HCMSIU SSPS⚡</Text>
             <View style={styles.divider} />
           </View>
 
-          {/* Error Message */}
+          {/* Error */}
           {error ? (
             <View style={styles.errorBox}>
-              <Ionicons name="alert-circle" size={18} color="#DC2626" />
+              <Ionicons name="alert-circle" size={18} color="#EF4444" />
               <Text style={styles.errorText}>{error}</Text>
             </View>
           ) : null}
@@ -120,10 +203,7 @@ export default function LoginScreen() {
                   placeholder="your.email@siu.edu.vn"
                   placeholderTextColor="#9CA3AF"
                   value={email}
-                  onChangeText={(text) => {
-                    setEmail(text);
-                    setError('');
-                  }}
+                  onChangeText={setEmail}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   editable={!isLoading}
@@ -141,17 +221,11 @@ export default function LoginScreen() {
                   placeholder="Nhập mật khẩu của bạn"
                   placeholderTextColor="#9CA3AF"
                   value={password}
-                  onChangeText={(text) => {
-                    setPassword(text);
-                    setError('');
-                  }}
+                  onChangeText={setPassword}
                   secureTextEntry={!showPassword}
                   editable={!isLoading}
                 />
-                <TouchableOpacity
-                  onPress={() => setShowPassword(!showPassword)}
-                  style={styles.eyeButton}
-                >
+                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
                   <Ionicons
                     name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                     size={20}
@@ -175,7 +249,7 @@ export default function LoginScreen() {
               disabled={isLoading}
             >
               {isLoading ? (
-                <ActivityIndicator color="#fff" />
+                <Text style={styles.loginButtonText}>Đang xử lý...</Text>
               ) : (
                 <>
                   <Ionicons name="log-in-outline" size={20} color="#fff" />
@@ -184,19 +258,15 @@ export default function LoginScreen() {
               )}
             </TouchableOpacity>
 
-            {/* Divider */}
-            <View style={styles.dividerContainer}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>Chưa có tài khoản?</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
             {/* Register Link */}
-            <Link href="/(auth)/register-step1" asChild>
-              <TouchableOpacity style={styles.registerButton}>
-                <Text style={styles.registerButtonText}>Tạo tài khoản</Text>
-              </TouchableOpacity>
-            </Link>
+            <View style={styles.registerContainer}>
+              <Text style={styles.registerText}>Chưa có tài khoản? </Text>
+              <Link href="/(auth)/register-step1" asChild>
+                <TouchableOpacity>
+                  <Text style={styles.registerLink}>Tạo tài khoản</Text>
+                </TouchableOpacity>
+              </Link>
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -205,76 +275,54 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
+  container: { flex: 1, backgroundColor: '#fff' },
+  keyboardView: { flex: 1 },
+  scrollContent: { flexGrow: 1, justifyContent: 'center', padding: 24 },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
     justifyContent: 'center',
-    padding: 24,
-  },
-  logoContainer: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 24,
   },
+  logoContainer: { alignItems: 'center', marginBottom: 32 },
   logoBox: {
-    width: 72,
-    height: 72,
+    width: 64,
+    height: 64,
     backgroundColor: '#3B82F6',
-    borderRadius: 20,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
-    shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
   },
-  logoText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#3B82F6',
-  },
-  divider: {
-    width: 48,
-    height: 3,
+  logoText: { fontSize: 20, fontWeight: 'bold', color: '#3B82F6' },
+  divider: { width: 48, height: 2, backgroundColor: '#3B82F6', marginTop: 8 },
+  iconContainer: { alignItems: 'center', marginBottom: 16 },
+  iconBox: {
+    width: 64,
+    height: 64,
+    borderRadius: 16,
     backgroundColor: '#3B82F6',
-    marginTop: 8,
-    borderRadius: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
+  title: { fontSize: 24, fontWeight: 'bold', color: '#111827', textAlign: 'center' },
+  subtitle: { fontSize: 14, color: '#6B7280', textAlign: 'center', marginTop: 8, marginBottom: 24 },
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FEF2F2',
-    borderWidth: 1,
-    borderColor: '#FECACA',
-    borderRadius: 10,
+    borderRadius: 8,
     padding: 12,
-    marginBottom: 16,
     gap: 8,
+    marginBottom: 16,
   },
-  errorText: {
-    flex: 1,
-    fontSize: 13,
-    color: '#DC2626',
-  },
-  form: {
-    gap: 16,
-  },
-  inputGroup: {
-    gap: 6,
-  },
-  label: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#374151',
-    letterSpacing: 0.5,
-  },
+  errorText: { flex: 1, fontSize: 13, color: '#EF4444' },
+  form: { gap: 16 },
+  inputGroup: { gap: 6 },
+  label: { fontSize: 11, fontWeight: '600', color: '#374151', letterSpacing: 0.5 },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -282,72 +330,37 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
     borderRadius: 10,
-  },
-  inputIcon: {
-    marginLeft: 12,
-  },
-  input: {
-    flex: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 14,
-    fontSize: 15,
-    color: '#374151',
-  },
-  eyeButton: {
     paddingHorizontal: 12,
   },
-  forgotPassword: {
-    alignSelf: 'flex-end',
+  inputIcon: { marginRight: 8 },
+  input: { flex: 1, paddingVertical: 14, fontSize: 15, color: '#374151' },
+  otpInput: {
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    padding: 16,
+    fontSize: 24,
+    color: '#111827',
+    textAlign: 'center',
+    letterSpacing: 12,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
-  forgotPasswordText: {
-    fontSize: 13,
-    color: '#3B82F6',
-    fontWeight: '500',
-  },
+  forgotPassword: { alignSelf: 'flex-end' },
+  forgotPasswordText: { fontSize: 13, color: '#3B82F6', fontWeight: '500' },
   loginButton: {
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#3B82F6',
     borderRadius: 10,
     paddingVertical: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
     gap: 8,
     marginTop: 8,
-    shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
   },
-  loginButtonDisabled: {
-    opacity: 0.7,
-  },
-  loginButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  dividerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 16,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#E5E7EB',
-  },
-  dividerText: {
-    paddingHorizontal: 12,
-    fontSize: 13,
-    color: '#9CA3AF',
-  },
-  registerButton: {
-    alignItems: 'center',
-  },
-  registerButtonText: {
-    fontSize: 15,
-    color: '#3B82F6',
-    fontWeight: '600',
-  },
+  loginButtonDisabled: { opacity: 0.6 },
+  loginButtonText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  registerContainer: { flexDirection: 'row', justifyContent: 'center', marginTop: 16 },
+  registerText: { fontSize: 14, color: '#6B7280' },
+  registerLink: { fontSize: 14, color: '#3B82F6', fontWeight: '500' },
 });
