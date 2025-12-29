@@ -1,36 +1,39 @@
 import { Tabs } from 'expo-router';
-import { Text, View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
-type TabIconProps = {
+type IconName = keyof typeof Ionicons.glyphMap;
+
+type TabBarIconProps = {
   focused: boolean;
-  icon: string;
-  label: string;
+  color: string;
+  size: number;
 };
-
-function TabIcon({ focused, icon, label }: TabIconProps) {
-  return (
-    <View style={styles.tabItem}>
-      <Text style={[styles.tabIcon, focused && styles.tabIconActive]}>{icon}</Text>
-      <Text style={[styles.tabLabel, focused && styles.tabLabelActive]}>{label}</Text>
-    </View>
-  );
-}
 
 export default function StudentLayout() {
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
+        tabBarActiveTintColor: '#3B82F6',
+        tabBarInactiveTintColor: '#9CA3AF',
         tabBarStyle: styles.tabBar,
-        tabBarShowLabel: false,
+        tabBarLabelStyle: styles.tabBarLabel,
+        tabBarItemStyle: styles.tabBarItem,
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Dashboard',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} icon="🏠" label="Trang chủ" />
+          title: 'Trang chủ',
+          tabBarIcon: ({ focused, color, size }: TabBarIconProps) => (
+            <View style={focused ? styles.activeIconContainer : undefined}>
+              <Ionicons
+                name={focused ? 'home' : 'home-outline'}
+                size={22}
+                color={color}
+              />
+            </View>
           ),
         }}
       />
@@ -38,8 +41,14 @@ export default function StudentLayout() {
         name="print"
         options={{
           title: 'In tài liệu',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} icon="📄" label="In tài liệu" />
+          tabBarIcon: ({ focused, color, size }: TabBarIconProps) => (
+            <View style={focused ? styles.activeIconContainer : undefined}>
+              <Ionicons
+                name={focused ? 'document-text' : 'document-text-outline'}
+                size={22}
+                color={color}
+              />
+            </View>
           ),
         }}
       />
@@ -47,8 +56,14 @@ export default function StudentLayout() {
         name="history"
         options={{
           title: 'Lịch sử',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} icon="📋" label="Lịch sử" />
+          tabBarIcon: ({ focused, color, size }: TabBarIconProps) => (
+            <View style={focused ? styles.activeIconContainer : undefined}>
+              <Ionicons
+                name={focused ? 'time' : 'time-outline'}
+                size={22}
+                color={color}
+              />
+            </View>
           ),
         }}
       />
@@ -56,8 +71,14 @@ export default function StudentLayout() {
         name="balance"
         options={{
           title: 'Số dư',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} icon="💳" label="Số dư" />
+          tabBarIcon: ({ focused, color, size }: TabBarIconProps) => (
+            <View style={focused ? styles.activeIconContainer : undefined}>
+              <Ionicons
+                name={focused ? 'wallet' : 'wallet-outline'}
+                size={22}
+                color={color}
+              />
+            </View>
           ),
         }}
       />
@@ -65,8 +86,14 @@ export default function StudentLayout() {
         name="profile"
         options={{
           title: 'Cá nhân',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} icon="👤" label="Cá nhân" />
+          tabBarIcon: ({ focused, color, size }: TabBarIconProps) => (
+            <View style={focused ? styles.activeIconContainer : undefined}>
+              <Ionicons
+                name={focused ? 'person' : 'person-outline'}
+                size={22}
+                color={color}
+              />
+            </View>
           ),
         }}
       />
@@ -76,31 +103,30 @@ export default function StudentLayout() {
 
 const styles = StyleSheet.create({
   tabBar: {
-    height: 70,
-    paddingTop: 8,
-    paddingBottom: 8,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
+    height: Platform.OS === 'ios' ? 85 : 65,
+    paddingTop: 8,
+    paddingBottom: Platform.OS === 'ios' ? 28 : 8,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
   },
-  tabItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 2,
-  },
-  tabIcon: {
-    fontSize: 22,
-  },
-  tabIconActive: {
-    transform: [{ scale: 1.1 }],
-  },
-  tabLabel: {
-    fontSize: 10,
-    color: '#9CA3AF',
+  tabBarLabel: {
+    fontSize: 11,
     fontWeight: '500',
+    marginTop: 4,
   },
-  tabLabelActive: {
-    color: '#3B82F6',
-    fontWeight: '600',
+  tabBarItem: {
+    paddingVertical: 4,
+  },
+  activeIconContainer: {
+    backgroundColor: '#EFF6FF',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
   },
 });

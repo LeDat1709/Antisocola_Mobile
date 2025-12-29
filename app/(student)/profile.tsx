@@ -1,7 +1,26 @@
-import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+type MenuItemProps = {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress?: () => void;
+  color?: string;
+};
+
+function MenuItem({ icon, label, onPress, color = '#374151' }: MenuItemProps) {
+  return (
+    <TouchableOpacity style={styles.menuItem} onPress={onPress}>
+      <Ionicons name={icon} size={22} color={color} />
+      <Text style={[styles.menuText, { color }]}>{label}</Text>
+      <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
+    </TouchableOpacity>
+  );
+}
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -19,55 +38,58 @@ export default function ProfileScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar style="dark" />
+
+      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Cá nhân</Text>
       </View>
-      
-      <View style={styles.content}>
-        {/* Avatar */}
-        <View style={styles.avatarContainer}>
+
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Profile Card */}
+        <View style={styles.profileCard}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>U</Text>
           </View>
-          <Text style={styles.userName}>Người dùng</Text>
-          <Text style={styles.userEmail}>user@siu.edu.vn</Text>
+          <View style={styles.profileInfo}>
+            <Text style={styles.userName}>Người dùng</Text>
+            <Text style={styles.userEmail}>user@siu.edu.vn</Text>
+          </View>
+          <TouchableOpacity style={styles.editButton}>
+            <Ionicons name="pencil" size={18} color="#3B82F6" />
+          </TouchableOpacity>
         </View>
 
-        {/* Menu Items */}
+        {/* Menu Sections */}
         <View style={styles.menuSection}>
-          <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuIcon}>👤</Text>
-            <Text style={styles.menuText}>Thông tin cá nhân</Text>
-            <Text style={styles.menuArrow}>›</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuIcon}>🔔</Text>
-            <Text style={styles.menuText}>Thông báo</Text>
-            <Text style={styles.menuArrow}>›</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuIcon}>⚙️</Text>
-            <Text style={styles.menuText}>Cài đặt</Text>
-            <Text style={styles.menuArrow}>›</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuIcon}>❓</Text>
-            <Text style={styles.menuText}>Hỗ trợ</Text>
-            <Text style={styles.menuArrow}>›</Text>
-          </TouchableOpacity>
+          <Text style={styles.menuSectionTitle}>Tài khoản</Text>
+          <View style={styles.menuCard}>
+            <MenuItem icon="person-outline" label="Thông tin cá nhân" />
+            <MenuItem icon="notifications-outline" label="Thông báo" />
+            <MenuItem icon="shield-checkmark-outline" label="Bảo mật" />
+          </View>
+        </View>
+
+        <View style={styles.menuSection}>
+          <Text style={styles.menuSectionTitle}>Hỗ trợ</Text>
+          <View style={styles.menuCard}>
+            <MenuItem icon="help-circle-outline" label="Trung tâm hỗ trợ" />
+            <MenuItem icon="chatbubble-outline" label="Liên hệ" />
+            <MenuItem icon="document-text-outline" label="Điều khoản sử dụng" />
+          </View>
         </View>
 
         {/* Logout Button */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Ionicons name="log-out-outline" size={22} color="#EF4444" />
           <Text style={styles.logoutText}>Đăng xuất</Text>
         </TouchableOpacity>
-      </View>
-    </View>
+
+        {/* App Version */}
+        <Text style={styles.version}>Phiên bản 1.0.0</Text>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -78,9 +100,8 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: '#fff',
-    paddingTop: 60,
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
@@ -93,23 +114,32 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
   },
-  avatarContainer: {
+  profileCard: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 32,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
   avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     backgroundColor: '#3B82F6',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
   },
   avatarText: {
-    fontSize: 32,
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#fff',
+  },
+  profileInfo: {
+    flex: 1,
+    marginLeft: 16,
   },
   userName: {
     fontSize: 18,
@@ -119,13 +149,34 @@ const styles = StyleSheet.create({
   userEmail: {
     fontSize: 14,
     color: '#6B7280',
-    marginTop: 4,
+    marginTop: 2,
+  },
+  editButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#EFF6FF',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   menuSection: {
+    marginBottom: 20,
+  },
+  menuSectionTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginBottom: 8,
+    marginLeft: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  menuCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
     overflow: 'hidden',
-    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
   menuItem: {
     flexDirection: 'row',
@@ -133,29 +184,32 @@ const styles = StyleSheet.create({
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
-  },
-  menuIcon: {
-    fontSize: 20,
-    marginRight: 12,
+    gap: 12,
   },
   menuText: {
     flex: 1,
     fontSize: 15,
-    color: '#374151',
-  },
-  menuArrow: {
-    fontSize: 20,
-    color: '#9CA3AF',
   },
   logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#FEE2E2',
     padding: 16,
     borderRadius: 12,
-    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
   },
   logoutText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#DC2626',
+    color: '#EF4444',
+  },
+  version: {
+    textAlign: 'center',
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginTop: 24,
+    marginBottom: 20,
   },
 });
