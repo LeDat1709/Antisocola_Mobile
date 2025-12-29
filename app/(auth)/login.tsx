@@ -316,15 +316,6 @@ export default function LoginScreen() {
                 </TouchableOpacity>
               </Link>
             </View>
-
-            {/* SPSO Login Link */}
-            <TouchableOpacity
-              style={styles.spsoLoginBtn}
-              onPress={() => router.push('/(auth)/spso-login')}
-            >
-              <Ionicons name="shield-checkmark-outline" size={18} color="#7C3AED" />
-              <Text style={styles.spsoLoginText}>Bạn là SPSO?</Text>
-            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -421,19 +412,6 @@ const styles = StyleSheet.create({
   registerContainer: { flexDirection: 'row', justifyContent: 'center', marginTop: 16 },
   registerText: { fontSize: 14, color: '#6B7280' },
   registerLink: { fontSize: 14, color: '#3B82F6', fontWeight: '500' },
-  spsoLoginBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F5F3FF',
-    borderRadius: 10,
-    paddingVertical: 14,
-    gap: 8,
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: '#DDD6FE',
-  },
-  spsoLoginText: { fontSize: 14, color: '#7C3AED', fontWeight: '500' },
   testOtpBox: {
     backgroundColor: '#FEF3C7',
     borderRadius: 12,
