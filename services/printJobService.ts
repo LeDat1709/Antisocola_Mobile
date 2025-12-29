@@ -8,6 +8,7 @@ export interface PrintJobRequest {
   duplex: boolean;
   copies: number;
   colorMode?: 'BlackWhite' | 'Color' | 'Grayscale';
+  colorPageRange?: string;
 }
 
 export interface PrintJob {
@@ -54,7 +55,7 @@ export const printJobService = {
   },
 
   async cancelPrintJob(jobId: number): Promise<void> {
-    await apiClient.post(`/print-jobs/${jobId}/cancel`, {});
+    await apiClient.delete(`/print-jobs/${jobId}`);
   },
 
   calculatePages(

@@ -117,24 +117,29 @@ export const authService = {
       deviceId,
     });
 
+    // Response có thể nằm trong data.data hoặc trực tiếp trong data
+    const responseData = (response.data as any).data || response.data;
+    
+    console.log('Login response:', JSON.stringify(responseData, null, 2));
+
     // Nếu cần OTP (202 response)
-    if (response.status === 202 || response.data.requireOtp) {
+    if (response.status === 202 || responseData.requireOtp) {
       await AsyncStorage.setItem('deviceId', deviceId);
       return {
         status: 202,
-        data: response.data,
-        message: response.data.message,
+        data: responseData,
+        message: responseData.message,
       };
     }
 
     // Thành công - Lưu tokens
-    if (response.data.accessToken) {
-      await this.saveTokens(response.data, deviceId);
+    if (responseData.accessToken) {
+      await this.saveTokens(responseData, deviceId);
     }
 
     return {
       status: 200,
-      data: response.data,
+      data: responseData,
     };
   },
 
@@ -147,13 +152,18 @@ export const authService = {
       rememberDevice: request.rememberDevice ?? false,
     });
 
-    if (response.data.accessToken) {
-      await this.saveTokens(response.data, request.deviceId || '');
+    // Response có thể nằm trong data.data hoặc trực tiếp trong data
+    const responseData = (response.data as any).data || response.data;
+    
+    console.log('Verify OTP response:', JSON.stringify(responseData, null, 2));
+
+    if (responseData.accessToken) {
+      await this.saveTokens(responseData, request.deviceId || '');
     }
 
     return {
       status: 200,
-      data: response.data,
+      data: responseData,
     };
   },
 
