@@ -1,12 +1,22 @@
 import { useState, useEffect, useRef } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Alert, TextInput, ScrollView, Image, Linking, Modal } from 'react-native';
+import {
+  StyleSheet,
+  Text,
+  View,
+  TouchableOpacity,
+  Alert,
+  TextInput,
+  ScrollView,
+  Image,
+  Modal,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { paymentService, CreatePaymentResponse, PaymentStatus } from '../../../services/paymentService';
+import { paymentService, CreatePaymentResponse } from '../../../services/paymentService';
+import { pagePricingService } from '../../../services/pagePricingService';
 
 const QUICK_AMOUNTS = [50, 100, 200, 500];
-const PRICE_PER_PAGE = 500; // VND
 
 export default function BuyPagesScreen() {
   const router = useRouter();
@@ -18,42 +28,61 @@ export default function BuyPagesScreen() {
   const [checkingStatus, setCheckingStatus] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const statusIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Pricing state - lấy từ cấu hình
+  const [pricePerPage, setPricePerPage] = useState(500); // Default fallback
 
   const pages = customAmount ? parseInt(customAmount) || 0 : amount;
-  const totalPrice = pages * PRICE_PER_PAGE;
+  const totalPrice = pages * pricePerPage;
 
+  // Load pricing on mount
   useEffect(() => {
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
+    const loadPricing = async () => {
+      try {
+        const pricingData = await pagePricingService.getAllPricing();
+        const a4Price = pricingData.find((p) => p.paperSize === 'A4');
+        if (a4Price) {
+          setPricePerPage(a4Price.pricePerPage);
+        }
+      } catch (error) {
+        console.error('Failed to load pricing:', error);
       }
     };
+    loadPricing();
   }, []);
 
+  // Countdown and status check for QR modal
   useEffect(() => {
-    if (paymentData && showQRModal) {
-      // Calculate countdown
-      const expiresAt = new Date(paymentData.expiresAt).getTime();
+    if (showQRModal && paymentData) {
+      // Parse expiry time
+      let expiresAtStr = paymentData.expiresAt;
+      if (!expiresAtStr.endsWith('Z') && !expiresAtStr.includes('+')) {
+        expiresAtStr += 'Z';
+      }
+      const expiresAt = new Date(expiresAtStr).getTime();
+
       const updateCountdown = () => {
         const now = Date.now();
         const remaining = Math.max(0, Math.floor((expiresAt - now) / 1000));
         setCountdown(remaining);
+
         if (remaining <= 0) {
-          if (intervalRef.current) clearInterval(intervalRef.current);
-          Alert.alert('Hết hạn', 'Giao dịch đã hết hạn. Vui lòng tạo giao dịch mới.');
+          Alert.alert('Hết hạn', 'Giao dịch đã hết hạn.');
           setShowQRModal(false);
           setPaymentData(null);
         }
       };
+
       updateCountdown();
       intervalRef.current = setInterval(updateCountdown, 1000);
 
       // Auto check status every 5 seconds
-      const statusInterval = setInterval(async () => {
+      statusIntervalRef.current = setInterval(async () => {
         try {
           const status = await paymentService.getPaymentStatus(paymentData.paymentCode);
           if (status.status === 'COMPLETED') {
-            clearInterval(statusInterval);
+            if (statusIntervalRef.current) clearInterval(statusIntervalRef.current);
             if (intervalRef.current) clearInterval(intervalRef.current);
             Alert.alert('Thành công', `Đã mua ${paymentData.a4Pages} trang thành công!`, [
               { text: 'OK', onPress: () => { setShowQRModal(false); router.back(); } },
@@ -65,11 +94,11 @@ export default function BuyPagesScreen() {
       }, 5000);
 
       return () => {
-        clearInterval(statusInterval);
+        if (statusIntervalRef.current) clearInterval(statusIntervalRef.current);
         if (intervalRef.current) clearInterval(intervalRef.current);
       };
     }
-  }, [paymentData, showQRModal]);
+  }, [paymentData, showQRModal, router]);
 
   const handleCreatePayment = async () => {
     if (!pages || pages < 1) {
@@ -188,7 +217,7 @@ export default function BuyPagesScreen() {
         {/* Price Info */}
         <View style={styles.priceInfo}>
           <Ionicons name="information-circle" size={16} color="#3B82F6" />
-          <Text style={styles.priceInfoText}>Giá: {PRICE_PER_PAGE.toLocaleString('vi-VN')}đ / trang A4</Text>
+          <Text style={styles.priceInfoText}>Giá: {pricePerPage.toLocaleString('vi-VN')}đ / trang A4</Text>
         </View>
 
         {/* Summary */}
@@ -200,7 +229,7 @@ export default function BuyPagesScreen() {
           <View style={styles.divider} />
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Đơn giá</Text>
-            <Text style={styles.summaryValue}>{PRICE_PER_PAGE.toLocaleString('vi-VN')}đ</Text>
+            <Text style={styles.summaryValue}>{pricePerPage.toLocaleString('vi-VN')}đ</Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.summaryRow}>
@@ -329,6 +358,7 @@ export default function BuyPagesScreen() {
     </SafeAreaView>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAFC' },

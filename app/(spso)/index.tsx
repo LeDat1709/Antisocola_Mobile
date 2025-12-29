@@ -96,9 +96,9 @@ export default function SPSODashboardScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Thao tác nhanh</Text>
           <View style={styles.actionsRow}>
-            <TouchableOpacity style={styles.actionBtn} onPress={() => router.push('/(spso)/students')}>
+            <TouchableOpacity style={styles.actionBtn} onPress={() => router.push('/(spso)/accounts')}>
               <Ionicons name="people" size={20} color="#3B82F6" />
-              <Text style={styles.actionText}>Sinh viên</Text>
+              <Text style={styles.actionText}>Tài khoản</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionBtn} onPress={() => router.push('/(spso)/printers')}>
               <Ionicons name="print" size={20} color="#10B981" />

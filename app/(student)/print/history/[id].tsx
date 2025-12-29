@@ -108,9 +108,9 @@ export default function PrintDetailScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Tài liệu</Text>
           <View style={styles.infoCard}>
-            <DetailRow icon="document-text" label="Tên file" value={job.documentName || `#${job.documentId}`} />
-            <DetailRow icon="layers" label="Số trang" value={`${job.totalPagesToPrint} trang`} />
-            <DetailRow icon="copy" label="Số bản" value={job.numCopies.toString()} />
+            <DetailRow icon="document-text" label="Tên file" value={job.documentName || `#${job.documentId || 'N/A'}`} />
+            <DetailRow icon="layers" label="Số trang" value={`${job.totalPagesToPrint ?? 0} trang`} />
+            <DetailRow icon="copy" label="Số bản" value={String(job.numCopies ?? 1)} />
           </View>
         </View>
 
@@ -118,10 +118,10 @@ export default function PrintDetailScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Cấu hình in</Text>
           <View style={styles.infoCard}>
-            <DetailRow icon="resize" label="Khổ giấy" value={job.paperSize} />
+            <DetailRow icon="resize" label="Khổ giấy" value={job.paperSize || 'A4'} />
             <DetailRow icon="albums" label="In 2 mặt" value={job.duplex ? 'Có' : 'Không'} />
             <DetailRow icon="color-palette" label="Màu sắc" value={job.colorMode === 'Color' ? 'Màu' : 'Đen trắng'} />
-            <DetailRow icon="calculator" label="Trang A4 tương đương" value={`${job.a4EquivalentPages} trang`} />
+            <DetailRow icon="calculator" label="Trang A4 tương đương" value={`${job.a4EquivalentPages ?? 0} trang`} />
           </View>
         </View>
 
@@ -129,7 +129,7 @@ export default function PrintDetailScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Máy in</Text>
           <View style={styles.infoCard}>
-            <DetailRow icon="print" label="Tên máy" value={job.printerName || `#${job.printerId}`} />
+            <DetailRow icon="print" label="Tên máy" value={job.printerName || `#${job.printerId || 'N/A'}`} />
           </View>
         </View>
 
@@ -137,7 +137,7 @@ export default function PrintDetailScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Thời gian</Text>
           <View style={styles.infoCard}>
-            <DetailRow icon="time" label="Gửi lệnh" value={new Date(job.submittedAt).toLocaleString('vi-VN')} />
+            <DetailRow icon="time" label="Gửi lệnh" value={job.submittedAt ? new Date(job.submittedAt).toLocaleString('vi-VN') : '-'} />
             {job.completedAt && (
               <DetailRow icon="checkmark" label="Hoàn thành" value={new Date(job.completedAt).toLocaleString('vi-VN')} />
             )}
