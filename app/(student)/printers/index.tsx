@@ -2,15 +2,19 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { printerService, Printer } from '../../../services/printerService';
 
 export default function PrinterListScreen() {
   const router = useRouter();
+  const { documentId, documentIds } = useLocalSearchParams<{ documentId?: string; documentIds?: string }>();
   const [printers, setPrinters] = useState<Printer[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedCampus, setSelectedCampus] = useState<string | undefined>();
+
+  // Check if we're in selection mode
+  const isSelectionMode = !!documentId || !!documentIds;
 
   const loadPrinters = async () => {
     try {
@@ -40,7 +44,12 @@ export default function PrinterListScreen() {
   const renderPrinter = ({ item }: { item: Printer }) => (
     <TouchableOpacity
       style={styles.printerCard}
-      onPress={() => router.push(`/(student)/printers/${item.printerId}`)}
+      onPress={() => {
+        const params: any = { id: item.printerId };
+        if (documentIds) params.documentIds = documentIds;
+        else if (documentId) params.documentId = documentId;
+        router.push({ pathname: `/(student)/printers/${item.printerId}`, params });
+      }}
     >
       <View style={styles.printerIcon}>
         <Ionicons name="print" size={24} color="#3B82F6" />
@@ -78,7 +87,12 @@ export default function PrinterListScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.title}>Máy in</Text>
+        {isSelectionMode && (
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <Ionicons name="arrow-back" size={24} color="#374151" />
+          </TouchableOpacity>
+        )}
+        <Text style={styles.title}>{isSelectionMode ? 'Chọn máy in' : 'Máy in'}</Text>
       </View>
 
       {/* Campus Filter */}
@@ -126,12 +140,16 @@ export default function PrinterListScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAFC' },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#fff',
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
+    gap: 12,
   },
+  backBtn: { padding: 4 },
   title: { fontSize: 24, fontWeight: 'bold', color: '#111827' },
   filterRow: {
     flexDirection: 'row',

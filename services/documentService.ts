@@ -110,6 +110,6 @@ export const documentService = {
   },
 
   async deleteDocument(id: number): Promise<void> {
-    await apiClient.post(`/documents/${id}/delete`, {});
+    await apiClient.delete(`/documents/${id}`);
   },
 };

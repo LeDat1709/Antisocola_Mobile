@@ -5,10 +5,14 @@ export interface DashboardStats {
   totalJobs: number;
   completedJobs: number;
   failedJobs: number;
+  cancelledJobs: number;
   pendingJobs: number;
+  printingJobs: number;
   totalPages: number;
   totalRevenue: number;
   monthRevenue: number;
+  monthlyStats?: Array<{ month: string; year: number; jobs: number; revenue: number }>;
+  weeklyStats?: Array<{ day: string; date: string; jobs: number }>;
 }
 
 // Accounts
@@ -36,8 +40,18 @@ export interface AccountDetail {
   lastLogin: string | null;
   a4Balance: number | null;
   a3Balance: number | null;
+  totalA4Equivalent: number | null;
   totalPrintJobs: number | null;
   totalPagesPrinted: number | null;
+  lastPrintTime: string | null;
+}
+
+export interface AccountFilter {
+  keyword?: string;
+  userType?: 'Student' | 'SPSO' | 'Admin';
+  status?: string;
+  sortBy?: string;
+  sortDirection?: string;
 }
 
 // Students
@@ -47,8 +61,32 @@ export interface Student {
   fullName: string;
   status: string;
   a4Balance: number;
+  a3Balance: number;
   totalPrintJobs: number;
   lastLogin: string | null;
+}
+
+export interface StudentDetail {
+  studentId: string;
+  email: string;
+  fullName: string;
+  phoneNumber: string | null;
+  status: string;
+  createdAt: string;
+  lastLogin: string | null;
+  a4Balance: number;
+  a3Balance: number;
+  totalA4Equivalent: number;
+  totalPrintJobs: number;
+  totalPagesPrinted: number;
+  lastPrintTime: string | null;
+}
+
+export interface StudentFilter {
+  keyword?: string;
+  status?: string;
+  sortBy?: string;
+  sortDirection?: string;
 }
 
 // Print Logs
@@ -57,13 +95,31 @@ export interface PrintLog {
   jobId: number;
   studentId: string;
   studentName: string;
+  studentEmail?: string;
+  printerId: string;
   printerName: string;
   printerLocation?: string;
   documentName: string;
   paperSize: string;
   pagesPrinted: number;
+  a4EquivalentUsed?: number;
   printTime: string;
+  durationSeconds?: number;
   status: string;
+  statusDisplay?: string;
+  fileType?: string;
+  errorMessage?: string;
+}
+
+export interface PrintLogFilter {
+  studentSearch?: string;
+  printerId?: string;
+  status?: string;
+  startDate?: string;
+  endDate?: string;
+  documentName?: string;
+  sortBy?: string;
+  sortDirection?: string;
 }
 
 export interface PrintLogStats {
@@ -72,23 +128,33 @@ export interface PrintLogStats {
   failedLogs: number;
   cancelledLogs: number;
   pendingLogs: number;
+  printingLogs: number;
   totalPages: number;
+  maxPages?: number;
+  minPages?: number;
 }
 
 // Reports
 export interface MonthlyReport {
+  reportId?: number;
   year: number;
   month: number;
   monthName: string;
+  totalStudentsActive: number;
   totalPrintJobs: number;
-  totalPagesPrinted: number;
-  totalRevenue: number;
   successfulJobs: number;
   failedJobs: number;
   cancelledJobs: number;
-  totalStudentsActive: number;
+  totalPagesPrinted: number;
   totalA4Equivalent: number;
   totalPagesPurchased: number;
+  totalRevenue: number;
+  mostUsedPrinterId?: string;
+  mostUsedPrinterName?: string;
+  mostUsedPrinterJobs?: number;
+  topStudentId?: string;
+  topStudentName?: string;
+  topStudentPages?: number;
   paperSizeDistribution: {
     a4Count: number;
     a3Count: number;
@@ -98,8 +164,10 @@ export interface MonthlyReport {
   topStudents: Array<{
     studentId: string;
     studentName: string;
+    studentEmail?: string;
     totalPages: number;
     totalJobs: number;
+    totalSpent?: number;
   }>;
   topPrinters: Array<{
     printerId: string;
@@ -108,16 +176,30 @@ export interface MonthlyReport {
     totalJobs: number;
     totalPages: number;
   }>;
+  dailyStats?: Array<{
+    day: number;
+    jobs: number;
+    pages: number;
+    revenue: number;
+  }>;
 }
 
 export interface YearlyReport {
+  reportId?: number;
   year: number;
+  totalStudentsActive: number;
   totalPrintJobs: number;
-  totalPagesPrinted: number;
-  totalRevenue: number;
   successfulJobs: number;
   failedJobs: number;
-  totalStudentsActive: number;
+  cancelledJobs: number;
+  totalPagesPrinted: number;
+  totalA4Equivalent: number;
+  totalPagesPurchased: number;
+  totalRevenue: number;
+  averageRevenuePerStudent?: number;
+  mostActiveMonth?: number;
+  mostActiveMonthName?: string;
+  mostActiveMonthJobs?: number;
   monthlyStats: Array<{
     month: number;
     monthName: string;
@@ -125,6 +207,27 @@ export interface YearlyReport {
     pages: number;
     revenue: number;
   }>;
+  topStudents: Array<{
+    studentId: string;
+    studentName: string;
+    studentEmail?: string;
+    totalPages: number;
+    totalJobs: number;
+    totalSpent?: number;
+  }>;
+  topPrinters: Array<{
+    printerId: string;
+    printerName: string;
+    location: string;
+    totalJobs: number;
+    totalPages: number;
+  }>;
+  paperSizeDistribution?: {
+    a4Count: number;
+    a3Count: number;
+    a4Percentage: number;
+    a3Percentage: number;
+  };
 }
 
 // Transactions
@@ -133,9 +236,11 @@ export interface Transaction {
   transactionCode: string;
   studentId: string;
   studentName: string;
-  transactionType: 'Allocate' | 'Purchase' | 'Use';
+  transactionType: 'ALLOCATED' | 'PURCHASED' | 'DEDUCTED';
   a4Pages: number;
+  a3Pages?: number;
   balanceAfterA4: number | null;
+  balanceAfterA3?: number | null;
   amount: number | null;
   transactionStatus: string;
   paymentMethod: string | null;
@@ -144,11 +249,11 @@ export interface Transaction {
   createdBy: string | null;
 }
 
-export interface TransactionStats {
-  totalAll: number;
-  totalAllocate: number;
-  totalPurchase: number;
-  totalUse: number;
+export interface TransactionFilter {
+  keyword?: string;
+  type?: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 // Locations
@@ -177,6 +282,7 @@ export interface Room {
   roomNumber: string;
   roomName?: string;
   roomType?: string;
+  capacity?: number;
   isActive: boolean;
 }
 
@@ -185,7 +291,7 @@ export interface SystemConfig {
   configKey: string;
   configValue: string;
   description: string;
-  dataType?: string;
+  dataType?: 'String' | 'Integer' | 'Decimal' | 'Boolean' | 'JSON';
 }
 
 export interface Semester {
@@ -196,34 +302,61 @@ export interface Semester {
   startDate: string;
   endDate: string;
   defaultA4Pages: number;
+  pageAllocationDate?: string | null;
   isActive: boolean;
   isCurrent: boolean;
+}
+
+export interface AllowedFileType {
+  fileTypeId: number;
+  fileExtension: string;
+  mimeType: string;
+  maxFileSizeMB: number;
+  isAllowed: boolean;
 }
 
 export interface SystemSettings {
   configs: Record<string, SystemConfig>;
   semesters: Semester[];
   currentSemester: Semester | null;
+  allowedFileTypes?: AllowedFileType[];
+}
+
+// Page Response
+export interface PageResponse<T> {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  pageable?: {
+    pageNumber: number;
+    pageSize: number;
+  };
+  last?: boolean;
+  first?: boolean;
+  empty?: boolean;
 }
 
 export const spsoService = {
-  // Dashboard
-  async getDashboardStats(): Promise<DashboardStats> {
-    const response = await apiClient.get<DashboardStats>('/dashboard/stats');
+  // ==================== DASHBOARD ====================
+  async getDashboardStats(year?: number): Promise<DashboardStats> {
+    const url = year ? `/dashboard/stats?year=${year}` : '/dashboard/stats';
+    const response = await apiClient.get<DashboardStats>(url);
     return response.data;
   },
 
-  // Accounts
+  // ==================== ACCOUNTS ====================
   async getAccounts(
     page = 0,
     size = 20,
-    filters?: { keyword?: string; userType?: string; status?: string }
-  ): Promise<{ content: Account[]; totalElements: number; totalPages: number }> {
+    filters?: AccountFilter
+  ): Promise<PageResponse<Account>> {
     let url = `/spso/accounts?pageNumber=${page + 1}&pageSize=${size}`;
-    if (filters?.keyword) url += `&keyword=${filters.keyword}`;
+    if (filters?.keyword) url += `&keyword=${encodeURIComponent(filters.keyword)}`;
     if (filters?.userType) url += `&userType=${filters.userType}`;
     if (filters?.status) url += `&status=${filters.status}`;
-    const response = await apiClient.get<{ content: Account[]; totalElements: number; totalPages: number }>(url);
+    if (filters?.sortBy) url += `&sortBy=${filters.sortBy}`;
+    if (filters?.sortDirection) url += `&sortDirection=${filters.sortDirection}`;
+    const response = await apiClient.get<PageResponse<Account>>(url);
     return response.data;
   },
 
@@ -232,16 +365,19 @@ export const spsoService = {
     return response.data;
   },
 
-  async updateAccountStatus(userId: string, status: string, reason?: string): Promise<void> {
-    await apiClient.put('/spso/accounts/status', { userId, status, reason });
+  async updateAccountStatus(userId: string, status: string, reason?: string): Promise<any> {
+    const response = await apiClient.put('/spso/accounts/status', { userId, status, reason });
+    return response.data;
   },
 
-  async updateAccountRole(userId: string, newRole: string, reason?: string): Promise<void> {
-    await apiClient.put('/spso/accounts/role', { userId, newRole, reason });
+  async updateAccountRole(userId: string, newRole: string, reason?: string): Promise<any> {
+    const response = await apiClient.put('/spso/accounts/role', { userId, newRole, reason });
+    return response.data;
   },
 
-  async allocatePages(studentId: string, a4Pages: number, reason?: string): Promise<void> {
-    await apiClient.post('/spso/accounts/allocate-pages', { studentId, a4Pages, a3Pages: 0, reason });
+  async allocatePages(studentId: string, a4Pages: number, a3Pages: number = 0, reason?: string): Promise<any> {
+    const response = await apiClient.post('/spso/accounts/allocate-pages', { studentId, a4Pages, a3Pages, reason });
+    return response.data;
   },
 
   async createAccount(data: {
@@ -251,44 +387,109 @@ export const spsoService = {
     phoneNumber?: string;
     userType: string;
     password: string;
-  }): Promise<void> {
-    await apiClient.post('/spso/accounts', data);
+  }): Promise<any> {
+    const response = await apiClient.post('/spso/accounts', data);
+    return response.data;
   },
 
-  // Students
-  async getStudents(page = 0, size = 20, keyword?: string): Promise<{ content: Student[]; totalElements: number }> {
+  async deleteAccount(userId: string): Promise<void> {
+    await apiClient.delete(`/spso/accounts/${userId}`);
+  },
+
+  async getAccountPrintHistory(
+    userId: string,
+    pageNumber: number = 1,
+    pageSize: number = 20
+  ): Promise<PageResponse<PrintLog>> {
+    const response = await apiClient.get<PageResponse<PrintLog>>(
+      `/spso/accounts/${userId}/print-history?pageNumber=${pageNumber}&pageSize=${pageSize}`
+    );
+    return response.data;
+  },
+
+  // ==================== STUDENTS ====================
+  async getStudents(
+    page = 0,
+    size = 20,
+    filters?: StudentFilter
+  ): Promise<PageResponse<Student>> {
     let url = `/spso/students?pageNumber=${page + 1}&pageSize=${size}`;
-    if (keyword) url += `&keyword=${keyword}`;
-    const response = await apiClient.get<{ content: Student[]; totalElements: number }>(url);
+    if (filters?.keyword) url += `&keyword=${encodeURIComponent(filters.keyword)}`;
+    if (filters?.status) url += `&status=${filters.status}`;
+    if (filters?.sortBy) url += `&sortBy=${filters.sortBy}`;
+    if (filters?.sortDirection) url += `&sortDirection=${filters.sortDirection}`;
+    const response = await apiClient.get<PageResponse<Student>>(url);
     return response.data;
   },
 
-  async getStudentDetail(studentId: string): Promise<Student> {
-    const response = await apiClient.get<Student>(`/spso/students/${studentId}`);
+  async getStudentDetail(studentId: string): Promise<StudentDetail> {
+    const response = await apiClient.get<StudentDetail>(`/spso/students/${studentId}`);
     return response.data;
   },
 
-  // Print Logs
+  async allocatePagesToStudent(studentId: string, a4Pages: number, a3Pages: number = 0, reason?: string): Promise<any> {
+    const response = await apiClient.post('/spso/students/allocate-pages', { studentId, a4Pages, a3Pages, reason });
+    return response.data;
+  },
+
+  async updateStudentStatus(studentId: string, status: string, reason?: string): Promise<any> {
+    const response = await apiClient.put('/spso/students/status', { studentId, status, reason });
+    return response.data;
+  },
+
+  async deleteStudent(studentId: string): Promise<void> {
+    await apiClient.delete(`/spso/students/${studentId}`);
+  },
+
+  async getStudentPrintHistory(
+    studentId: string,
+    pageNumber: number = 1,
+    pageSize: number = 20
+  ): Promise<PageResponse<PrintLog>> {
+    const response = await apiClient.get<PageResponse<PrintLog>>(
+      `/spso/students/${studentId}/print-history?pageNumber=${pageNumber}&pageSize=${pageSize}`
+    );
+    return response.data;
+  },
+
+  // ==================== PRINT LOGS ====================
   async getPrintLogs(
     page = 0,
     size = 20,
-    filters?: { studentSearch?: string; status?: string; startDate?: string; endDate?: string }
-  ): Promise<{ content: PrintLog[]; totalElements: number; totalPages: number }> {
+    filters?: PrintLogFilter
+  ): Promise<PageResponse<PrintLog>> {
     let url = `/print-logs?page=${page}&size=${size}`;
-    if (filters?.studentSearch) url += `&studentSearch=${filters.studentSearch}`;
+    if (filters?.studentSearch) url += `&studentSearch=${encodeURIComponent(filters.studentSearch)}`;
+    if (filters?.printerId) url += `&printerId=${filters.printerId}`;
     if (filters?.status) url += `&status=${filters.status}`;
     if (filters?.startDate) url += `&startDate=${filters.startDate}`;
     if (filters?.endDate) url += `&endDate=${filters.endDate}`;
-    const response = await apiClient.get<{ content: PrintLog[]; totalElements: number; totalPages: number }>(url);
+    if (filters?.documentName) url += `&documentName=${encodeURIComponent(filters.documentName)}`;
+    if (filters?.sortBy) url += `&sortBy=${filters.sortBy}`;
+    if (filters?.sortDirection) url += `&sortDirection=${filters.sortDirection}`;
+    const response = await apiClient.get<PageResponse<PrintLog>>(url);
     return response.data;
   },
 
-  async getPrintLogStats(): Promise<PrintLogStats> {
-    const response = await apiClient.get<PrintLogStats>('/print-logs/stats');
+  async getPrintLogById(logId: number): Promise<PrintLog> {
+    const response = await apiClient.get<PrintLog>(`/print-logs/${logId}`);
     return response.data;
   },
 
-  // Reports
+  async getPrintLogStats(filters?: PrintLogFilter): Promise<PrintLogStats> {
+    let url = '/print-logs/stats';
+    const params: string[] = [];
+    if (filters?.studentSearch) params.push(`studentSearch=${encodeURIComponent(filters.studentSearch)}`);
+    if (filters?.printerId) params.push(`printerId=${filters.printerId}`);
+    if (filters?.status) params.push(`status=${filters.status}`);
+    if (filters?.startDate) params.push(`startDate=${filters.startDate}`);
+    if (filters?.endDate) params.push(`endDate=${filters.endDate}`);
+    if (params.length > 0) url += `?${params.join('&')}`;
+    const response = await apiClient.get<PrintLogStats>(url);
+    return response.data;
+  },
+
+  // ==================== REPORTS ====================
   async getMonthlyReport(year: number, month: number): Promise<MonthlyReport> {
     const response = await apiClient.get<MonthlyReport>(`/reports/monthly?year=${year}&month=${month}`);
     return response.data;
@@ -299,11 +500,16 @@ export const spsoService = {
     return response.data;
   },
 
-  // Transactions
+  async generateMonthlyReport(year: number, month: number): Promise<MonthlyReport> {
+    const response = await apiClient.post<MonthlyReport>(`/reports/monthly/generate?year=${year}&month=${month}`);
+    return response.data;
+  },
+
+  // ==================== TRANSACTIONS ====================
   async getTransactions(
     page = 0,
     size = 20,
-    filters?: { keyword?: string; type?: string; startDate?: string; endDate?: string }
+    filters?: TransactionFilter
   ): Promise<{
     content: Transaction[];
     totalElements: number;
@@ -314,11 +520,19 @@ export const spsoService = {
     totalUseTransactions: number;
   }> {
     let url = `/admin/transactions?page=${page}&size=${size}`;
-    if (filters?.keyword) url += `&keyword=${filters.keyword}`;
+    if (filters?.keyword) url += `&keyword=${encodeURIComponent(filters.keyword)}`;
     if (filters?.type) url += `&type=${filters.type}`;
     if (filters?.startDate) url += `&startDate=${filters.startDate}`;
     if (filters?.endDate) url += `&endDate=${filters.endDate}`;
-    const response = await apiClient.get(url);
+    const response = await apiClient.get<{
+      content: Transaction[];
+      totalElements: number;
+      totalPages: number;
+      currentPage: number;
+      totalAllocateTransactions: number;
+      totalPurchaseTransactions: number;
+      totalUseTransactions: number;
+    }>(url);
     return response.data;
   },
 
@@ -327,7 +541,7 @@ export const spsoService = {
     return response.data;
   },
 
-  // Locations
+  // ==================== LOCATIONS ====================
   async getCampuses(): Promise<Campus[]> {
     const response = await apiClient.get<{ data: Campus[] }>('/locations/campuses');
     return response.data.data;
@@ -371,12 +585,12 @@ export const spsoService = {
     return response.data.data;
   },
 
-  async createRoom(data: { buildingId: number; roomNumber: string; roomName?: string; roomType?: string; isActive: boolean }): Promise<Room> {
+  async createRoom(data: { buildingId: number; roomNumber: string; roomName?: string; roomType?: string; capacity?: number; isActive: boolean }): Promise<Room> {
     const response = await apiClient.post<{ data: Room }>('/locations/rooms', data);
     return response.data.data;
   },
 
-  async updateRoom(id: number, data: { buildingId: number; roomNumber: string; roomName?: string; roomType?: string; isActive: boolean }): Promise<Room> {
+  async updateRoom(id: number, data: { buildingId: number; roomNumber: string; roomName?: string; roomType?: string; capacity?: number; isActive: boolean }): Promise<Room> {
     const response = await apiClient.put<{ data: Room }>(`/locations/rooms/${id}`, data);
     return response.data.data;
   },
@@ -385,18 +599,38 @@ export const spsoService = {
     await apiClient.delete(`/locations/rooms/${id}`);
   },
 
-  // Settings
+  // ==================== SETTINGS ====================
   async getSettings(): Promise<SystemSettings> {
     const response = await apiClient.get<SystemSettings>('/spso/settings');
     return response.data;
   },
 
-  async updateConfig(configKey: string, configValue: string): Promise<void> {
-    await apiClient.put('/spso/settings/config', { configKey, configValue, updatedBy: 'SPSO' });
+  async getConfig(configKey: string): Promise<SystemConfig> {
+    const response = await apiClient.get<SystemConfig>(`/spso/settings/config/${configKey}`);
+    return response.data;
   },
 
-  async updateMultipleConfigs(configs: Record<string, string>): Promise<void> {
-    await apiClient.put('/spso/settings/configs', configs, { params: { updatedBy: 'SPSO' } });
+  async updateConfig(configKey: string, configValue: string, updatedBy: string = 'SPSO'): Promise<SystemConfig> {
+    const response = await apiClient.put<SystemConfig>('/spso/settings/config', { configKey, configValue, updatedBy });
+    return response.data;
+  },
+
+  async updateMultipleConfigs(configs: Record<string, string>, updatedBy: string = 'SPSO'): Promise<Record<string, SystemConfig>> {
+    const response = await apiClient.put<Record<string, SystemConfig>>(
+      `/spso/settings/configs?updatedBy=${encodeURIComponent(updatedBy)}`,
+      configs
+    );
+    return response.data;
+  },
+
+  async getAllSemesters(): Promise<Semester[]> {
+    const response = await apiClient.get<Semester[]>('/spso/settings/semesters');
+    return response.data;
+  },
+
+  async getCurrentSemester(): Promise<Semester> {
+    const response = await apiClient.get<Semester>('/spso/settings/semesters/current');
+    return response.data;
   },
 
   async createSemester(data: {
@@ -406,6 +640,8 @@ export const spsoService = {
     startDate: string;
     endDate: string;
     defaultA4Pages: number;
+    pageAllocationDate?: string;
+    isCurrent?: boolean;
   }): Promise<Semester> {
     const response = await apiClient.post<Semester>('/spso/settings/semesters', { ...data, createdBy: 'SPSO' });
     return response.data;
@@ -418,9 +654,18 @@ export const spsoService = {
     startDate: string;
     endDate: string;
     defaultA4Pages: number;
+    pageAllocationDate?: string;
     isActive?: boolean;
+    isCurrent?: boolean;
   }): Promise<Semester> {
     const response = await apiClient.put<Semester>('/spso/settings/semesters', { ...data, updatedBy: 'SPSO' });
+    return response.data;
+  },
+
+  async setCurrentSemester(semesterId: number, updatedBy: string = 'SPSO'): Promise<Semester> {
+    const response = await apiClient.put<Semester>(
+      `/spso/settings/semesters/${semesterId}/set-current?updatedBy=${encodeURIComponent(updatedBy)}`
+    );
     return response.data;
   },
 

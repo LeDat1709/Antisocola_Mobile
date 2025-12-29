@@ -29,6 +29,7 @@ export default function SPSOLoginScreen() {
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [otpCode, setOtpCode] = useState('');
   const [deviceId, setDeviceId] = useState('');
+  const [displayOtp, setDisplayOtp] = useState<string | null>(null);
 
   const handleLogin = async () => {
     setError('');
@@ -46,6 +47,14 @@ export default function SPSOLoginScreen() {
         const storedDeviceId = await AsyncStorage.getItem('deviceId');
         setDeviceId(storedDeviceId || '');
         setShowOtpModal(true);
+        
+        // Hiển thị OTP cho email test
+        if (email.includes('.test@') || email.includes('test@')) {
+          const otpFromResponse = result.data?.otpCode;
+          if (otpFromResponse) {
+            setDisplayOtp(otpFromResponse);
+          }
+        }
       } else if (result.status === 200) {
         const userRole = result.data?.role?.toUpperCase();
         if (userRole !== 'SPSO' && userRole !== 'ADMIN') {
@@ -77,8 +86,12 @@ export default function SPSOLoginScreen() {
         rememberDevice: true,
       });
 
+      console.log('SPSO OTP verify result:', JSON.stringify(result, null, 2));
+
       const userRole = result.data?.role?.toUpperCase();
-      if (userRole !== 'SPSO' && userRole !== 'ADMIN') {
+      console.log('User role:', userRole);
+      
+      if (userRole && userRole !== 'SPSO' && userRole !== 'ADMIN') {
         await authService.logout();
         setError('Trang này chỉ dành cho SPSO/Admin');
         setShowOtpModal(false);
@@ -86,8 +99,11 @@ export default function SPSOLoginScreen() {
       }
 
       setShowOtpModal(false);
-      router.replace('/(spso)');
+      setTimeout(() => {
+        router.replace('/(spso)');
+      }, 100);
     } catch (err) {
+      console.error('SPSO OTP verify error:', err);
       Alert.alert('Lỗi', (err as Error).message);
     } finally {
       setIsLoading(false);
@@ -112,6 +128,14 @@ export default function SPSOLoginScreen() {
 
             <Text style={styles.title}>Xác thực OTP</Text>
             <Text style={styles.subtitle}>Nhập mã OTP đã gửi đến {email}</Text>
+
+            {/* Hiển thị OTP cho email test */}
+            {displayOtp && (
+              <View style={styles.testOtpBox}>
+                <Text style={styles.testOtpLabel}>🔑 Mã OTP (Test Mode):</Text>
+                <Text style={styles.testOtpCode}>{displayOtp}</Text>
+              </View>
+            )}
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>MÃ OTP</Text>
@@ -245,4 +269,15 @@ const styles = StyleSheet.create({
   loginButtonText: { color: '#fff', fontSize: 15, fontWeight: '600' },
   studentLink: { alignItems: 'center', marginTop: 16 },
   studentLinkText: { fontSize: 14, color: '#6B7280' },
+  testOtpBox: {
+    backgroundColor: '#FEF3C7',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#FCD34D',
+  },
+  testOtpLabel: { fontSize: 13, color: '#92400E', marginBottom: 8 },
+  testOtpCode: { fontSize: 32, fontWeight: 'bold', color: '#D97706', letterSpacing: 8 },
 });

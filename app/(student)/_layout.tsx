@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { View, StyleSheet, Platform } from 'react-native';
+import { StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function StudentLayout() {
@@ -34,10 +34,7 @@ export default function StudentLayout() {
       <Tabs.Screen
         name="printers"
         options={{
-          title: 'Máy in',
-          tabBarIcon: ({ focused, color }) => (
-            <Ionicons name={focused ? 'desktop' : 'desktop-outline'} size={22} color={color} />
-          ),
+          href: null, // Ẩn khỏi tab bar, chỉ truy cập từ trong app
         }}
       />
       <Tabs.Screen
@@ -56,6 +53,12 @@ export default function StudentLayout() {
           tabBarIcon: ({ focused, color }) => (
             <Ionicons name={focused ? 'person' : 'person-outline'} size={22} color={color} />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="notifications"
+        options={{
+          href: null, // Ẩn khỏi tab bar
         }}
       />
     </Tabs>

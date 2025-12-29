@@ -7,9 +7,12 @@ import { printerService, Printer } from '../../../services/printerService';
 
 export default function PrinterDetailScreen() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, documentId, documentIds } = useLocalSearchParams<{ id: string; documentId?: string; documentIds?: string }>();
   const [printer, setPrinter] = useState<Printer | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Check if we're in selection mode (have documents to print)
+  const isSelectionMode = !!documentId || !!documentIds;
 
   useEffect(() => {
     const loadPrinter = async () => {
@@ -139,7 +142,18 @@ export default function PrinterDetailScreen() {
         {printer.status === 'Active' && (
           <TouchableOpacity
             style={styles.selectBtn}
-            onPress={() => router.push({ pathname: '/(student)/print/upload', params: { printerId: printer.printerId } })}
+            onPress={() => {
+              if (isSelectionMode) {
+                // Go to config with printer and documents
+                const params: any = { printerId: printer.printerId };
+                if (documentIds) params.documentIds = documentIds;
+                else if (documentId) params.documentId = documentId;
+                router.push({ pathname: '/(student)/print/config', params });
+              } else {
+                // Go to upload with printer
+                router.push({ pathname: '/(student)/print/upload', params: { printerId: printer.printerId } });
+              }
+            }}
           >
             <Ionicons name="checkmark-circle" size={20} color="#fff" />
             <Text style={styles.selectBtnText}>Chọn máy in này</Text>

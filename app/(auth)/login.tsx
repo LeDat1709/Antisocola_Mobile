@@ -30,6 +30,7 @@ export default function LoginScreen() {
   const [otpCode, setOtpCode] = useState('');
   const [otpEmail, setOtpEmail] = useState('');
   const [deviceId, setDeviceId] = useState('');
+  const [displayOtp, setDisplayOtp] = useState<string | null>(null); // Hiển thị OTP cho email test
 
   const handleLogin = async () => {
     setError('');
@@ -56,15 +57,33 @@ export default function LoginScreen() {
         setDeviceId(storedDeviceId || '');
         setShowOtpModal(true);
         setError('');
+        
+        // Nếu là email test, hiển thị OTP lên màn hình
+        if (email.includes('.test@') || email.includes('test@')) {
+          const otpFromResponse = result.data?.otpCode;
+          if (otpFromResponse) {
+            setDisplayOtp(otpFromResponse);
+          }
+        }
       } else if (result.status === 200) {
         // Đăng nhập thành công
         const userRole = result.data?.role?.toUpperCase();
+        console.log('[Login] Direct login success, role:', userRole);
+        
         if (userRole !== 'STUDENT') {
           await authService.logout();
           setError('Trang này chỉ dành cho sinh viên');
           return;
         }
-        router.replace('/(student)');
+        
+        // Verify token was saved
+        const savedToken = await AsyncStorage.getItem('accessToken');
+        console.log('[Login] Token saved:', savedToken ? 'yes' : 'no');
+        
+        // Navigate with small delay to ensure state sync
+        setTimeout(() => {
+          router.replace('/(student)');
+        }, 300);
       }
     } catch (err) {
       setError((err as Error).message || 'Đăng nhập thất bại');
@@ -88,19 +107,41 @@ export default function LoginScreen() {
         rememberDevice: true,
       });
 
+      console.log('[Login] OTP verify result:', JSON.stringify(result, null, 2));
+
       const userRole = result.data?.role?.toUpperCase();
-      if (userRole !== 'STUDENT') {
+      console.log('[Login] User role:', userRole);
+      
+      // Kiểm tra role - cho phép STUDENT hoặc không có role (mặc định là student)
+      if (userRole && userRole !== 'STUDENT') {
         await authService.logout();
         setError('Trang này chỉ dành cho sinh viên');
         setShowOtpModal(false);
+        setIsLoading(false);
+        return;
+      }
+
+      // Verify token was saved
+      const savedToken = await AsyncStorage.getItem('accessToken');
+      console.log('[Login] Token saved:', savedToken ? 'yes' : 'no');
+
+      if (!savedToken) {
+        setError('Lỗi lưu token, vui lòng thử lại');
+        setIsLoading(false);
         return;
       }
 
       setShowOtpModal(false);
-      router.replace('/(student)');
+      setIsLoading(false);
+      
+      // Navigate to student dashboard with small delay to ensure state sync
+      console.log('[Login] Navigating to student dashboard');
+      setTimeout(() => {
+        router.replace('/(student)');
+      }, 300);
     } catch (err) {
+      console.error('[Login] OTP verify error:', err);
       Alert.alert('Lỗi', (err as Error).message);
-    } finally {
       setIsLoading(false);
     }
   };
@@ -133,6 +174,14 @@ export default function LoginScreen() {
 
             <Text style={styles.title}>Xác thực OTP</Text>
             <Text style={styles.subtitle}>Nhập mã OTP đã gửi đến {otpEmail}</Text>
+
+            {/* Hiển thị OTP cho email test */}
+            {displayOtp && (
+              <View style={styles.testOtpBox}>
+                <Text style={styles.testOtpLabel}>🔑 Mã OTP (Test Mode):</Text>
+                <Text style={styles.testOtpCode}>{displayOtp}</Text>
+              </View>
+            )}
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>MÃ OTP</Text>
@@ -267,6 +316,15 @@ export default function LoginScreen() {
                 </TouchableOpacity>
               </Link>
             </View>
+
+            {/* SPSO Login Link */}
+            <TouchableOpacity
+              style={styles.spsoLoginBtn}
+              onPress={() => router.push('/(auth)/spso-login')}
+            >
+              <Ionicons name="shield-checkmark-outline" size={18} color="#7C3AED" />
+              <Text style={styles.spsoLoginText}>Bạn là SPSO?</Text>
+            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -363,4 +421,28 @@ const styles = StyleSheet.create({
   registerContainer: { flexDirection: 'row', justifyContent: 'center', marginTop: 16 },
   registerText: { fontSize: 14, color: '#6B7280' },
   registerLink: { fontSize: 14, color: '#3B82F6', fontWeight: '500' },
+  spsoLoginBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F5F3FF',
+    borderRadius: 10,
+    paddingVertical: 14,
+    gap: 8,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#DDD6FE',
+  },
+  spsoLoginText: { fontSize: 14, color: '#7C3AED', fontWeight: '500' },
+  testOtpBox: {
+    backgroundColor: '#FEF3C7',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#FCD34D',
+  },
+  testOtpLabel: { fontSize: 13, color: '#92400E', marginBottom: 8 },
+  testOtpCode: { fontSize: 32, fontWeight: 'bold', color: '#D97706', letterSpacing: 8 },
 });
