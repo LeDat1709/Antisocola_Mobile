@@ -1,12 +1,12 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 
-export default function HomeScreen() {
+export default function ForgotPasswordScreen() {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Antisocola</Text>
-      <Text style={styles.subtitle}>Welcome to your app!</Text>
-      <StatusBar style="auto" />
+      <Text style={styles.title}>Quên mật khẩu</Text>
+      <Text style={styles.subtitle}>Trang quên mật khẩu sẽ được triển khai</Text>
+      <StatusBar style="dark" />
     </View>
   );
 }
@@ -19,12 +19,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    fontSize: 32,
+    fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#666',
   },
 });

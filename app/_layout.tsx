@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Slot, useRouter, useSegments } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function RootLayout() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -7,11 +8,13 @@ export default function RootLayout() {
   const router = useRouter();
 
   useEffect(() => {
-    // TODO: Replace with actual auth check
     const checkAuth = async () => {
-      // Simulate checking auth state
-      const token = null; // await AsyncStorage.getItem('token');
-      setIsAuthenticated(!!token);
+      try {
+        const token = await AsyncStorage.getItem('accessToken');
+        setIsAuthenticated(!!token);
+      } catch {
+        setIsAuthenticated(false);
+      }
     };
     checkAuth();
   }, []);
@@ -22,11 +25,9 @@ export default function RootLayout() {
     const inAuthGroup = segments[0] === '(auth)';
 
     if (!isAuthenticated && !inAuthGroup) {
-      // Redirect to login if not authenticated
       router.replace('/(auth)/login');
     } else if (isAuthenticated && inAuthGroup) {
-      // Redirect to home if authenticated
-      router.replace('/(tabs)');
+      router.replace('/(student)');
     }
   }, [isAuthenticated, segments]);
 
