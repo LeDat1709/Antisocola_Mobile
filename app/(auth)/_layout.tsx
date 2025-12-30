@@ -6,7 +6,6 @@ export default function AuthLayout() {
       <Stack.Screen name="login" />
       <Stack.Screen name="register-step1" />
       <Stack.Screen name="register-step2" />
-      <Stack.Screen name="otp-verification" />
       <Stack.Screen name="forgot-password" />
     </Stack>
   );

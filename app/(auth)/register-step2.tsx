@@ -13,7 +13,8 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authService } from '../../services/authService';
 
 const OTP_EXPIRATION_SECONDS = 5 * 60;
@@ -21,13 +22,38 @@ const RESEND_COOLDOWN_SECONDS = 60;
 
 export default function RegisterStep2Screen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ email: string; registrationToken: string }>();
 
+  const [email, setEmail] = useState('');
+  const [registrationToken, setRegistrationToken] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [otpCountdown, setOtpCountdown] = useState(OTP_EXPIRATION_SECONDS);
   const [resendCooldown, setResendCooldown] = useState(RESEND_COOLDOWN_SECONDS);
+
+  // Load data từ AsyncStorage khi mount
+  useEffect(() => {
+    const loadRegistrationData = async () => {
+      try {
+        const storedEmail = await AsyncStorage.getItem('registrationEmail');
+        const storedToken = await AsyncStorage.getItem('registrationToken');
+        const otpSentAt = await AsyncStorage.getItem('otpSentAt');
+        
+        if (storedEmail) setEmail(storedEmail);
+        if (storedToken) setRegistrationToken(storedToken);
+        
+        // Tính thời gian còn lại của OTP
+        if (otpSentAt) {
+          const elapsed = Math.floor((Date.now() - parseInt(otpSentAt)) / 1000);
+          const remaining = Math.max(0, OTP_EXPIRATION_SECONDS - elapsed);
+          setOtpCountdown(remaining);
+        }
+      } catch (err) {
+        console.log('[Register] Error loading data:', err);
+      }
+    };
+    loadRegistrationData();
+  }, []);
 
   useEffect(() => {
     if (otpCountdown > 0) {
@@ -64,16 +90,28 @@ export default function RegisterStep2Screen() {
 
     setIsLoading(true);
     try {
-      await authService.verifyRegistrationOtp({
-        email: params.email,
+      console.log('[Register] Verifying OTP:', {
+        email,
         otpCode,
-        registrationToken: params.registrationToken,
+        registrationToken,
       });
+
+      const result = await authService.verifyRegistrationOtp({
+        email,
+        otpCode,
+        registrationToken,
+      });
+
+      console.log('[Register] OTP verify result:', result);
+
+      // Xóa data đăng ký khỏi storage
+      await AsyncStorage.multiRemove(['registrationEmail', 'registrationToken', 'otpSentAt', 'registrationData']);
 
       Alert.alert('Thành công', 'Đăng ký thành công! Vui lòng đăng nhập.', [
         { text: 'Đăng nhập', onPress: () => router.replace('/(auth)/login') },
       ]);
     } catch (err) {
+      console.log('[Register] OTP verify error:', (err as Error).message);
       setError((err as Error).message);
     } finally {
       setIsLoading(false);
@@ -86,9 +124,26 @@ export default function RegisterStep2Screen() {
     setError('');
     setIsLoading(true);
     try {
-      // Re-initiate registration to get new OTP
-      // This would need the original registration data stored somewhere
-      Alert.alert('Thông báo', 'Vui lòng quay lại bước 1 để gửi lại OTP');
+      // Lấy lại data đăng ký từ storage
+      const registrationDataStr = await AsyncStorage.getItem('registrationData');
+      if (!registrationDataStr) {
+        Alert.alert('Lỗi', 'Không tìm thấy thông tin đăng ký. Vui lòng quay lại bước 1.');
+        return;
+      }
+
+      const registrationData = JSON.parse(registrationDataStr);
+      const response = await authService.initiateRegistration(registrationData);
+
+      // Cập nhật token mới
+      await AsyncStorage.setItem('registrationToken', response.data.registrationToken);
+      await AsyncStorage.setItem('otpSentAt', Date.now().toString());
+      
+      setRegistrationToken(response.data.registrationToken);
+      setOtpCountdown(OTP_EXPIRATION_SECONDS);
+      setResendCooldown(RESEND_COOLDOWN_SECONDS);
+      setOtpCode('');
+      
+      Alert.alert('Thành công', 'Mã OTP mới đã được gửi đến email của bạn');
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -121,7 +176,7 @@ export default function RegisterStep2Screen() {
 
           <Text style={styles.title}>Xác thực OTP</Text>
           <Text style={styles.subtitle}>
-            Nhập mã OTP đã gửi đến {params.email}
+            Nhập mã OTP đã gửi đến {email || '...'}
           </Text>
 
           {/* OTP Countdown */}
