@@ -5,7 +5,7 @@ import { Platform } from 'react-native';
 const getBaseUrl = () => {
   // Đổi IP này thành IP máy tính của bạn khi test trên thiết bị thật
   // Chạy 'ipconfig' trên Windows để lấy IP
-  const LOCAL_IP = '192.168.1.81'; // <-- Đổi IP của bạn ở đây
+  const LOCAL_IP = '192.168.1.128'; // <-- Đổi IP của bạn ở đây
   
   if (__DEV__) {
     if (Platform.OS === 'android') {

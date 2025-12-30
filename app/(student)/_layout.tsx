@@ -1,9 +1,11 @@
 import { Tabs } from 'expo-router';
-import { StyleSheet, Platform } from 'react-native';
+import { StyleSheet, Platform, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import FloatingChatbot from '../../components/FloatingChatbot';
 
 export default function StudentLayout() {
   return (
+    <View style={{ flex: 1 }}>
     <Tabs
       screenOptions={{
         headerShown: false,
@@ -62,6 +64,8 @@ export default function StudentLayout() {
         }}
       />
     </Tabs>
+    <FloatingChatbot />
+    </View>
   );
 }
 

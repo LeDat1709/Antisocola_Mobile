@@ -5,11 +5,20 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { pageBalanceService, PageBalance } from '../../services/pageBalanceService';
 import { printJobService, PrintJob } from '../../services/printJobService';
+import { notificationService } from '../../services/notificationService';
 
 interface WeeklyStat {
   day: string;
   success: number;
   failed: number;
+}
+
+interface JobStatusCounts {
+  completed: number;
+  failed: number;
+  printing: number;
+  pending: number;
+  cancelled: number;
 }
 
 const { width } = Dimensions.get('window');
@@ -23,10 +32,19 @@ export default function DashboardScreen() {
   const [weeklyStats, setWeeklyStats] = useState<WeeklyStat[]>([]);
   const [successRate, setSuccessRate] = useState({ success: 0, failed: 0 });
   const [monthlyStats, setMonthlyStats] = useState({ jobs: 0, pages: 0 });
+  const [jobStatusCounts, setJobStatusCounts] = useState<JobStatusCounts>({
+    completed: 0,
+    failed: 0,
+    printing: 0,
+    pending: 0,
+    cancelled: 0,
+  });
+  const [favoritePrinter, setFavoritePrinter] = useState<string>('--');
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const loadData = useCallback(async () => {
     try {
-      const [balanceData, jobsData] = await Promise.all([
+      const [balanceData, jobsData, unreadData] = await Promise.all([
         pageBalanceService.getBalance().catch((err) => {
           console.log('Balance error:', err);
           return null;
@@ -35,9 +53,14 @@ export default function DashboardScreen() {
           console.log('Jobs error:', err);
           return [];
         }),
+        notificationService.getUnreadCount().catch((err) => {
+          console.log('Unread count error:', err);
+          return 0;
+        }),
       ]);
       if (balanceData) setBalance(balanceData);
       setPrintJobs(jobsData || []);
+      setUnreadCount(unreadData);
       calculateStats(jobsData || []);
     } catch (error) {
       console.error('Load data error:', error);
@@ -60,30 +83,45 @@ export default function DashboardScreen() {
     const monthPages = monthJobs.reduce((sum, job) => sum + (job.a4EquivalentPages || job.totalPagesToPrint || 0), 0);
     setMonthlyStats({ jobs: monthJobs.length, pages: monthPages });
 
-    // Success rate
+    // Job status counts
     const completed = jobs.filter((j) => j.jobStatus === 'Completed').length;
     const failed = jobs.filter((j) => j.jobStatus === 'Failed').length;
+    const printing = jobs.filter((j) => j.jobStatus === 'Printing').length;
+    const pending = jobs.filter((j) => j.jobStatus === 'Pending').length;
+    const cancelled = jobs.filter((j) => j.jobStatus === 'Cancelled').length;
     setSuccessRate({ success: completed, failed });
+    setJobStatusCounts({ completed, failed, printing, pending, cancelled });
 
-    // Weekly stats (last 7 days)
-    const days = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+    // Weekly stats (last 7 days) - hiển thị theo thứ tự thời gian
+    const dayNames = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
     const weekStats: WeeklyStat[] = [];
+    
     for (let i = 6; i >= 0; i--) {
       const date = new Date();
       date.setDate(date.getDate() - i);
+      const dayOfWeek = date.getDay(); // 0 = CN, 1 = T2, ..., 6 = T7
       const dayJobs = jobs.filter((job) => {
         const jobDate = new Date(job.submittedAt);
         return jobDate.toDateString() === date.toDateString();
       });
       weekStats.push({
-        day: days[date.getDay()],
+        day: dayNames[dayOfWeek],
         success: dayJobs.filter((j) => j.jobStatus === 'Completed').length,
         failed: dayJobs.filter((j) => j.jobStatus === 'Failed').length,
       });
     }
     setWeeklyStats(weekStats);
 
-
+    // Favorite printer - tìm máy in được sử dụng nhiều nhất
+    const printerCount: Record<string, number> = {};
+    jobs.forEach((job) => {
+      const printer = job.printerName || `Máy in #${job.printerId}`;
+      if (printer) {
+        printerCount[printer] = (printerCount[printer] || 0) + 1;
+      }
+    });
+    const topPrinter = Object.entries(printerCount).sort((a, b) => b[1] - a[1])[0];
+    setFavoritePrinter(topPrinter ? topPrinter[0] : '--');
   };
 
   useEffect(() => {
@@ -141,11 +179,18 @@ export default function DashboardScreen() {
           <Text style={styles.greeting}>Xin chào! 👋</Text>
           <Text style={styles.title}>Dashboard</Text>
         </View>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.notificationBtn}
           onPress={() => router.push('/(student)/notifications')}
         >
           <Ionicons name="notifications-outline" size={24} color="#374151" />
+          {unreadCount > 0 && (
+            <View style={styles.notificationBadge}>
+              <Text style={styles.notificationBadgeText}>
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -154,7 +199,7 @@ export default function DashboardScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         showsVerticalScrollIndicator={false}
       >
-        {/* Stats Cards */}
+        {/* Stats Cards - Row 1: Tổng quan */}
         <View style={styles.statsGrid}>
           <TouchableOpacity
             style={[styles.statCard, { borderColor: '#DBEAFE' }]}
@@ -167,11 +212,11 @@ export default function DashboardScreen() {
             <Text style={styles.statLabel}>Số dư trang A4</Text>
           </TouchableOpacity>
 
-          <View style={[styles.statCard, { borderColor: '#D1FAE5' }]}>
-            <View style={[styles.statIcon, { backgroundColor: '#ECFDF5' }]}>
-              <Ionicons name="trending-up" size={20} color="#10B981" />
+          <View style={[styles.statCard, { borderColor: '#E0E7FF' }]}>
+            <View style={[styles.statIcon, { backgroundColor: '#EEF2FF' }]}>
+              <Ionicons name="trending-up" size={20} color="#6366F1" />
             </View>
-            <Text style={styles.statValue}>{monthlyStats.jobs}</Text>
+            <Text style={[styles.statValue, { color: '#6366F1' }]}>{monthlyStats.jobs}</Text>
             <Text style={styles.statLabel}>Lệnh in tháng này</Text>
           </View>
 
@@ -179,18 +224,66 @@ export default function DashboardScreen() {
             <View style={[styles.statIcon, { backgroundColor: '#FFF7ED' }]}>
               <Ionicons name="layers" size={20} color="#F97316" />
             </View>
-            <Text style={styles.statValue}>{monthlyStats.pages}</Text>
+            <Text style={[styles.statValue, { color: '#F97316' }]}>{monthlyStats.pages}</Text>
             <Text style={styles.statLabel}>Trang in tháng này</Text>
           </View>
 
           <View style={[styles.statCard, { borderColor: '#E9D5FF' }]}>
             <View style={[styles.statIcon, { backgroundColor: '#FAF5FF' }]}>
-              <Ionicons name="checkmark-circle" size={20} color="#A855F7" />
+              <Ionicons name="print" size={20} color="#A855F7" />
             </View>
-            <Text style={styles.statValue}>{successPercent}%</Text>
-            <Text style={styles.statLabel}>Tỷ lệ thành công</Text>
+            <Text style={[styles.statValue, styles.favoritePrinterText, { color: '#A855F7' }]} numberOfLines={1}>
+              {favoritePrinter}
+            </Text>
+            <Text style={styles.statLabel}>Máy in yêu thích</Text>
           </View>
         </View>
+
+        {/* Stats Cards - Row 2: Trạng thái lệnh in */}
+        <Text style={styles.statusSectionTitle}>Trạng thái lệnh in</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.statusCardsScroll}>
+          <View style={styles.statusCardsRow}>
+            <View style={[styles.statusCard, { borderColor: '#D1FAE5' }]}>
+              <View style={[styles.statusIcon, { backgroundColor: '#ECFDF5' }]}>
+                <Ionicons name="checkmark" size={18} color="#10B981" />
+              </View>
+              <Text style={[styles.statusValue, { color: '#10B981' }]}>{jobStatusCounts.completed}</Text>
+              <Text style={styles.statusLabel}>Thành công</Text>
+            </View>
+
+            <View style={[styles.statusCard, { borderColor: '#FECACA' }]}>
+              <View style={[styles.statusIcon, { backgroundColor: '#FEF2F2' }]}>
+                <Ionicons name="close" size={18} color="#EF4444" />
+              </View>
+              <Text style={[styles.statusValue, { color: '#EF4444' }]}>{jobStatusCounts.failed}</Text>
+              <Text style={styles.statusLabel}>Thất bại</Text>
+            </View>
+
+            <View style={[styles.statusCard, { borderColor: '#DBEAFE' }]}>
+              <View style={[styles.statusIcon, { backgroundColor: '#EFF6FF' }]}>
+                <Ionicons name="print" size={18} color="#3B82F6" />
+              </View>
+              <Text style={[styles.statusValue, { color: '#3B82F6' }]}>{jobStatusCounts.printing}</Text>
+              <Text style={styles.statusLabel}>Đang in</Text>
+            </View>
+
+            <View style={[styles.statusCard, { borderColor: '#FEF3C7' }]}>
+              <View style={[styles.statusIcon, { backgroundColor: '#FFFBEB' }]}>
+                <Ionicons name="time" size={18} color="#F59E0B" />
+              </View>
+              <Text style={[styles.statusValue, { color: '#F59E0B' }]}>{jobStatusCounts.pending}</Text>
+              <Text style={styles.statusLabel}>Đang chờ</Text>
+            </View>
+
+            <View style={[styles.statusCard, { borderColor: '#E5E7EB' }]}>
+              <View style={[styles.statusIcon, { backgroundColor: '#F3F4F6' }]}>
+                <Ionicons name="ban" size={18} color="#6B7280" />
+              </View>
+              <Text style={[styles.statusValue, { color: '#6B7280' }]}>{jobStatusCounts.cancelled}</Text>
+              <Text style={styles.statusLabel}>Đã hủy</Text>
+            </View>
+          </View>
+        </ScrollView>
 
         {/* Quick Actions */}
         <View style={styles.section}>
@@ -222,23 +315,48 @@ export default function DashboardScreen() {
           </View>
         </View>
 
-        {/* Weekly Stats Chart */}
+        {/* Weekly Stats Chart - Simple */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="bar-chart" size={18} color="#3B82F6" />
             <Text style={styles.sectionTitle}>Thống kê lệnh in theo tuần</Text>
           </View>
           <View style={styles.chartCard}>
+            {/* Bars */}
             <View style={styles.chartContainer}>
               {weeklyStats.map((stat, index) => {
-                const yAxisMax = Math.ceil(maxBarValue / 3) * 3 || 3;
-                const successHeight = stat.success > 0 ? Math.max((stat.success / yAxisMax) * 100, 10) : 0;
-                const failedHeight = stat.failed > 0 ? Math.max((stat.failed / yAxisMax) * 100, 10) : 0;
+                const maxVal = Math.max(...weeklyStats.map((s) => Math.max(s.success, s.failed)), 1);
+                const successHeight = stat.success > 0 ? (stat.success / maxVal) * 80 : 0;
+                const failedHeight = stat.failed > 0 ? (stat.failed / maxVal) * 80 : 0;
                 return (
                   <View key={index} style={styles.chartBar}>
                     <View style={styles.barGroup}>
-                      <View style={[styles.bar, styles.successBar, { height: `${successHeight}%` }]} />
-                      <View style={[styles.bar, styles.failedBar, { height: `${failedHeight}%` }]} />
+                      {/* Success Bar with Label */}
+                      <View style={styles.barWrapper}>
+                        {stat.success > 0 && (
+                          <Text style={styles.barValueSuccess}>{stat.success}</Text>
+                        )}
+                        <View
+                          style={[
+                            styles.bar,
+                            styles.successBar,
+                            { height: successHeight > 0 ? Math.max(successHeight, 6) : 0 },
+                          ]}
+                        />
+                      </View>
+                      {/* Failed Bar with Label */}
+                      <View style={styles.barWrapper}>
+                        {stat.failed > 0 && (
+                          <Text style={styles.barValueFailed}>{stat.failed}</Text>
+                        )}
+                        <View
+                          style={[
+                            styles.bar,
+                            styles.failedBar,
+                            { height: failedHeight > 0 ? Math.max(failedHeight, 6) : 0 },
+                          ]}
+                        />
+                      </View>
                     </View>
                     <Text style={styles.chartLabel}>{stat.day}</Text>
                   </View>
@@ -306,10 +424,12 @@ export default function DashboardScreen() {
               <TouchableOpacity
                 key={job.jobId}
                 style={styles.jobCard}
-                onPress={() => router.push({
-                  pathname: '/(student)/print/history/[id]',
-                  params: { id: job.jobId.toString() }
-                })}
+                onPress={() =>
+                  router.push({
+                    pathname: '/(student)/print/history/[id]',
+                    params: { id: job.jobId.toString() },
+                  })
+                }
               >
                 <View style={styles.jobIcon}>
                   <Ionicons name="document-text" size={20} color="#6B7280" />
@@ -338,6 +458,7 @@ export default function DashboardScreen() {
   );
 }
 
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAFC' },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
@@ -354,9 +475,26 @@ const styles = StyleSheet.create({
   },
   greeting: { fontSize: 14, color: '#6B7280' },
   title: { fontSize: 24, fontWeight: 'bold', color: '#111827' },
-  notificationBtn: { padding: 8 },
+  notificationBtn: { padding: 8, position: 'relative' },
+  notificationBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: '#EF4444',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  notificationBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
   content: { flex: 1, padding: 16 },
-  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 20 },
+  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 16 },
   statCard: {
     width: (width - 44) / 2,
     backgroundColor: '#fff',
@@ -374,6 +512,35 @@ const styles = StyleSheet.create({
   },
   statValue: { fontSize: 24, fontWeight: 'bold', color: '#111827' },
   statLabel: { fontSize: 12, color: '#6B7280', marginTop: 2 },
+  favoritePrinterText: { fontSize: 14 },
+  // Status cards section
+  statusSectionTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 10,
+    marginTop: 4,
+  },
+  statusCardsScroll: { marginBottom: 20 },
+  statusCardsRow: { flexDirection: 'row', gap: 10, paddingRight: 16 },
+  statusCard: {
+    width: 90,
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  statusIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  statusValue: { fontSize: 20, fontWeight: 'bold' },
+  statusLabel: { fontSize: 10, color: '#6B7280', marginTop: 2, textAlign: 'center' },
   section: { marginBottom: 20 },
   sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -397,14 +564,31 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
-  chartContainer: { flexDirection: 'row', justifyContent: 'space-around', height: 120, alignItems: 'flex-end' },
+  chartContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    height: 110,
+    alignItems: 'flex-end',
+    paddingTop: 10,
+  },
   chartBar: { alignItems: 'center', flex: 1 },
-  barGroup: { flexDirection: 'row', alignItems: 'flex-end', height: 100, gap: 2 },
-  bar: { width: 12, borderRadius: 4 },
+  barGroup: { flexDirection: 'row', alignItems: 'flex-end', height: 90, gap: 3 },
+  barWrapper: { alignItems: 'center' },
+  bar: { width: 14, borderRadius: 4, minHeight: 0 },
   successBar: { backgroundColor: '#10B981' },
   failedBar: { backgroundColor: '#F87171' },
-  chartLabel: { fontSize: 11, color: '#6B7280', marginTop: 4 },
-  chartLegend: { flexDirection: 'row', justifyContent: 'center', gap: 20, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#F3F4F6' },
+  barValueSuccess: { fontSize: 9, color: '#10B981', fontWeight: '700', marginBottom: 2 },
+  barValueFailed: { fontSize: 9, color: '#EF4444', fontWeight: '700', marginBottom: 2 },
+  chartLabel: { fontSize: 11, color: '#6B7280', marginTop: 8, fontWeight: '500' },
+  chartLegend: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 20,
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendDot: { width: 10, height: 10, borderRadius: 2 },
   legendText: { fontSize: 12, color: '#6B7280' },

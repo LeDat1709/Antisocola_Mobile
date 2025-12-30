@@ -42,11 +42,41 @@ export default function TransactionHistoryScreen() {
 
   const getTypeInfo = (type: string) => {
     switch (type) {
-      case 'ALLOCATED': return { icon: 'gift', color: '#10B981', label: 'Cấp phát' };
-      case 'PURCHASED': return { icon: 'card', color: '#3B82F6', label: 'Mua' };
-      case 'DEDUCTED': return { icon: 'print', color: '#EF4444', label: 'Sử dụng' };
-      default: return { icon: 'swap-horizontal', color: '#6B7280', label: type };
+      case 'Allocate':
+      case 'ALLOCATED':
+        return { icon: 'gift', color: '#10B981', label: 'Cấp phát' };
+      case 'Purchase':
+      case 'PURCHASED':
+        return { icon: 'card', color: '#3B82F6', label: 'Mua thêm' };
+      case 'Use':
+      case 'DEDUCTED':
+        return { icon: 'print', color: '#EF4444', label: 'Chiết khấu (in)' };
+      case 'Refund':
+        return { icon: 'refresh', color: '#F59E0B', label: 'Hoàn trả' };
+      default:
+        return { icon: 'swap-horizontal', color: '#6B7280', label: type };
     }
+  };
+
+  // Format notes để hiển thị đúng số trang A3
+  const formatNotes = (notes: string) => {
+    if (!notes) return null;
+    
+    // Nếu notes chứa "X trang A3" và số trang A4, cần tính lại
+    // Ví dụ: "In ... - 4 trang A3" thực ra là 2 trang A3 (vì 1 A3 = 2 A4)
+    const a3Match = notes.match(/(\d+)\s*trang\s*A3/i);
+    if (a3Match) {
+      const a4Pages = parseInt(a3Match[1]);
+      const actualA3Pages = Math.floor(a4Pages / 2);
+      if (actualA3Pages > 0) {
+        return notes.replace(
+          /(\d+)\s*trang\s*A3/i,
+          `${actualA3Pages} trang A3 (${a4Pages} trang A4)`
+        );
+      }
+    }
+    
+    return notes;
   };
 
   const renderItem = ({ item }: { item: PageTransaction }) => {
@@ -62,7 +92,7 @@ export default function TransactionHistoryScreen() {
           <Text style={styles.txDate}>
             {new Date(item.createdAt).toLocaleString('vi-VN')}
           </Text>
-          {item.notes && <Text style={styles.txNotes}>{item.notes}</Text>}
+          {item.notes && <Text style={styles.txNotes}>{formatNotes(item.notes)}</Text>}
         </View>
         <View style={styles.txRight}>
           <Text style={[styles.txAmount, { color: item.a4Pages > 0 ? '#10B981' : '#EF4444' }]}>

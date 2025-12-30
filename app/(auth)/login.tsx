@@ -140,7 +140,7 @@ export default function LoginScreen() {
         router.replace('/(student)');
       }, 300);
     } catch (err) {
-      console.error('[Login] OTP verify error:', err);
+      console.log('[Login] OTP verify failed:', (err as Error).message);
       Alert.alert('Lỗi', (err as Error).message);
       setIsLoading(false);
     }
