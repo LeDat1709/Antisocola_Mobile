@@ -64,7 +64,9 @@ export default function BuyPagesScreen() {
 
       const updateCountdown = () => {
         const now = Date.now();
-        const remaining = Math.max(0, Math.floor((expiresAt - now) / 1000));
+        let remaining = Math.max(0, Math.floor((expiresAt - now) / 1000));
+        // Giới hạn tối đa 10 phút (600 giây) để tránh hiển thị sai
+        remaining = Math.min(remaining, 600);
         setCountdown(remaining);
 
         if (remaining <= 0) {
@@ -347,6 +349,30 @@ export default function BuyPagesScreen() {
                   </Text>
                 </TouchableOpacity>
 
+                {/* Test Payment Button - DEV ONLY */}
+                {__DEV__ && (
+                  <TouchableOpacity
+                    style={styles.testPaymentBtn}
+                    onPress={async () => {
+                      try {
+                        setCheckingStatus(true);
+                        await paymentService.testCompletePayment(paymentData.paymentCode);
+                        Alert.alert('Thành công', `Đã mua ${paymentData.a4Pages} trang thành công!`, [
+                          { text: 'OK', onPress: () => { setShowQRModal(false); router.back(); } },
+                        ]);
+                      } catch (error) {
+                        Alert.alert('Lỗi', (error as Error).message);
+                      } finally {
+                        setCheckingStatus(false);
+                      }
+                    }}
+                    disabled={checkingStatus}
+                  >
+                    <Ionicons name="bug" size={20} color="#fff" />
+                    <Text style={styles.testPaymentBtnText}>🧪 Test thanh toán (DEV)</Text>
+                  </TouchableOpacity>
+                )}
+
                 <TouchableOpacity style={styles.cancelBtn} onPress={handleCancelPayment}>
                   <Text style={styles.cancelBtnText}>Hủy giao dịch</Text>
                 </TouchableOpacity>
@@ -543,4 +569,15 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   cancelBtnText: { fontSize: 14, color: '#EF4444', fontWeight: '500' },
+  testPaymentBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#10B981',
+    borderRadius: 12,
+    padding: 14,
+    gap: 8,
+    marginBottom: 12,
+  },
+  testPaymentBtnText: { fontSize: 15, fontWeight: '600', color: '#fff' },
 });
