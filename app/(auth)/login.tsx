@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -31,6 +31,20 @@ export default function LoginScreen() {
   const [otpEmail, setOtpEmail] = useState('');
   const [deviceId, setDeviceId] = useState('');
   const [displayOtp, setDisplayOtp] = useState<string | null>(null); // Hiển thị OTP cho email test
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const cooldownRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Countdown effect
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      cooldownRef.current = setTimeout(() => {
+        setResendCooldown(resendCooldown - 1);
+      }, 1000);
+    }
+    return () => {
+      if (cooldownRef.current) clearTimeout(cooldownRef.current);
+    };
+  }, [resendCooldown]);
 
   const handleLogin = async () => {
     setError('');
@@ -57,6 +71,7 @@ export default function LoginScreen() {
         setDeviceId(storedDeviceId || '');
         setShowOtpModal(true);
         setError('');
+        setResendCooldown(60); // 60 giây cooldown
         
         // Nếu là email test, hiển thị OTP lên màn hình
         if (email.includes('.test@') || email.includes('test@')) {
@@ -146,6 +161,33 @@ export default function LoginScreen() {
     }
   };
 
+  const handleResendOtp = async () => {
+    if (resendCooldown > 0 || isLoading) return;
+
+    setIsLoading(true);
+    try {
+      const result = await authService.login({ email, password });
+      
+      if (result.status === 202) {
+        setResendCooldown(60);
+        setOtpCode('');
+        Alert.alert('Thành công', 'Mã OTP mới đã được gửi đến email của bạn');
+        
+        // Cập nhật OTP cho email test
+        if (email.includes('.test@') || email.includes('test@')) {
+          const otpFromResponse = result.data?.otpCode;
+          if (otpFromResponse) {
+            setDisplayOtp(otpFromResponse);
+          }
+        }
+      }
+    } catch (err) {
+      Alert.alert('Lỗi', (err as Error).message || 'Không thể gửi lại OTP');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // OTP Modal
   if (showOtpModal) {
     return (
@@ -206,6 +248,18 @@ export default function LoginScreen() {
                 {isLoading ? 'Đang xử lý...' : 'Xác nhận'}
               </Text>
             </TouchableOpacity>
+
+            {/* Resend OTP */}
+            <View style={styles.resendContainer}>
+              <Text style={styles.resendText}>Không nhận được mã? </Text>
+              {resendCooldown > 0 ? (
+                <Text style={styles.resendCooldown}>Gửi lại sau {resendCooldown}s</Text>
+              ) : (
+                <TouchableOpacity onPress={handleResendOtp} disabled={isLoading}>
+                  <Text style={styles.resendLink}>Gửi lại OTP</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -423,4 +477,8 @@ const styles = StyleSheet.create({
   },
   testOtpLabel: { fontSize: 13, color: '#92400E', marginBottom: 8 },
   testOtpCode: { fontSize: 32, fontWeight: 'bold', color: '#D97706', letterSpacing: 8 },
+  resendContainer: { flexDirection: 'row', justifyContent: 'center', marginTop: 20 },
+  resendText: { fontSize: 14, color: '#6B7280' },
+  resendLink: { fontSize: 14, color: '#3B82F6', fontWeight: '600' },
+  resendCooldown: { fontSize: 14, color: '#9CA3AF' },
 });

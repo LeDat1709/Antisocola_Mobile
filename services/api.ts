@@ -55,7 +55,17 @@ class ApiClient {
     const responseData = await response.json();
 
     if (!response.ok && response.status !== 202) {
-      throw new Error(responseData.error || responseData.message || 'Request failed');
+      // Log để debug
+      console.log('[API Error]', endpoint, JSON.stringify(responseData, null, 2));
+      
+      // Lấy message lỗi chi tiết từ response
+      const errorMessage = 
+        responseData.data?.message ||
+        responseData.data?.error ||
+        responseData.message || 
+        responseData.error || 
+        'Có lỗi xảy ra';
+      throw new Error(errorMessage);
     }
 
     return {

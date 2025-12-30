@@ -173,9 +173,11 @@ export const authService = {
       '/auth/initiate-registration',
       data
     );
+    // Response có thể nằm trong data.data hoặc trực tiếp trong data
+    const responseData = (response.data as any).data || response.data;
     return {
       status: 200,
-      data: response.data,
+      data: responseData,
     };
   },
 
@@ -185,9 +187,11 @@ export const authService = {
       '/auth/verify-registration-otp',
       data
     );
+    // Response có thể nằm trong data.data hoặc trực tiếp trong data
+    const responseData = (response.data as any).data || response.data;
     return {
       status: 201,
-      data: response.data,
+      data: responseData,
     };
   },
 

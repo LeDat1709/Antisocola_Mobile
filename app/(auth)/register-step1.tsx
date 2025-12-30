@@ -101,6 +101,8 @@ export default function RegisterStep1Screen() {
     setIsLoading(true);
 
     try {
+      console.log('[Register Step1] Initiating registration for:', formData.email);
+      
       const response = await authService.initiateRegistration({
         email: formData.email,
         fullName: formData.fullName,
@@ -109,14 +111,18 @@ export default function RegisterStep1Screen() {
         confirmPassword: formData.confirmPassword,
       });
 
+      console.log('[Register Step1] Response:', JSON.stringify(response.data, null, 2));
+
       // Lưu thông tin để verify OTP
       await AsyncStorage.setItem('registrationToken', response.data.registrationToken);
-      await AsyncStorage.setItem('registrationEmail', response.data.email);
+      await AsyncStorage.setItem('registrationEmail', response.data.email || formData.email);
       await AsyncStorage.setItem('otpSentAt', Date.now().toString());
       await AsyncStorage.setItem('registrationData', JSON.stringify(formData));
 
+      console.log('[Register Step1] Data saved, navigating to step 2');
       router.push('/(auth)/register-step2');
     } catch (err) {
+      console.log('[Register Step1] Error:', (err as Error).message);
       setFieldErrors({
         general: (err as Error).message || 'Đăng ký thất bại. Vui lòng thử lại.',
       });
